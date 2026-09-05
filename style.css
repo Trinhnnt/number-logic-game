@@ -285,6 +285,33 @@ body {
     gap: 8px;
 }
 
+/* Opponent Bar */
+.opponent-bar {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 6px 14px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+}
+
+.opp-badge {
+    color: #fca5a5;
+    font-weight: 700;
+}
+
+.opp-progress {
+    display: flex;
+    gap: 10px;
+    color: var(--text-secondary);
+}
+
+.opp-progress strong {
+    color: #fff;
+}
+
 .timer {
     font-family: var(--font-mono);
     color: var(--num-3-color);
@@ -597,6 +624,62 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.mp-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+.divider {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    position: relative;
+}
+
+.join-box {
+    display: flex;
+    gap: 10px;
+}
+
+.mp-input {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-size: 1rem;
+    font-family: var(--font-mono);
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.lobby-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.room-code-display {
+    font-size: 2.8rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    color: var(--num-1-color);
+    background: rgba(0, 240, 255, 0.1);
+    border: 2px stroke var(--num-1-color);
+    padding: 10px 30px;
+    border-radius: var(--radius-md);
+    letter-spacing: 6px;
 }
 
 /* Victory Box */

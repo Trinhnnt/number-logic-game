@@ -1,6 +1,15 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (FIXED BANK INDEX BUG)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (MULTIPLAYER SUPPORT)
    ========================================================================== */
+
+function mulberry32(a) {
+    return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
 
 class LogicGame {
     constructor() {
@@ -17,6 +26,7 @@ class LogicGame {
         this.timerInterval = null;
         this.hintsCount = 3;
         this.isGameOver = false;
+        this.randomFunc = Math.random;
 
         this.initDOM();
         this.bindEvents();
@@ -43,6 +53,8 @@ class LogicGame {
             btnSound: document.getElementById('btn-sound'),
             btnHelp: document.getElementById('btn-help'),
             victoryModal: document.getElementById('victory-modal'),
+            victoryTitle: document.getElementById('victory-title'),
+            victoryDesc: document.getElementById('victory-desc'),
             helpModal: document.getElementById('help-modal'),
             btnNextLevel: document.getElementById('btn-next-level'),
             finalTime: document.getElementById('final-time'),
@@ -88,19 +100,23 @@ class LogicGame {
        PUZZLE GENERATOR
        ========================================================================== */
 
+    startMultiplayerGame(seed) {
+        this.randomFunc = mulberry32(seed);
+        this.startNewGame();
+    }
+
     startNewGame() {
         if (this.difficulty === 'classic') {
             this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
             this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
         } else if (this.difficulty === 'standard_digits') {
-            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10));
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(this.randomFunc() * 10));
             this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
         } else {
-            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10));
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(this.randomFunc() * 10));
             this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
         }
 
-        // Always keep bank sorted for 1-to-1 UI index matching!
         this.bank = [...this.INITIAL_NUMBERS].sort((a,b) => a - b);
         this.slots = Array(10).fill(null);
         this.history = [];
@@ -120,7 +136,7 @@ class LogicGame {
         let attempts = 0;
         while (attempts < 2000) {
             attempts++;
-            let arr = [...this.INITIAL_NUMBERS].sort(() => Math.random() - 0.5);
+            let arr = [...this.INITIAL_NUMBERS].sort(() => this.randomFunc() - 0.5);
 
             if (this.difficulty === 'classic') {
                 let twoIndices = [];
@@ -145,7 +161,7 @@ class LogicGame {
                 if (valid) return arr;
             }
         }
-        return [...this.INITIAL_NUMBERS].sort(() => Math.random() - 0.5);
+        return [...this.INITIAL_NUMBERS].sort(() => this.randomFunc() - 0.5);
     }
 
     generateRules(solution) {
@@ -208,7 +224,6 @@ class LogicGame {
         const countsMap = {};
         solution.forEach(n => countsMap[n] = (countsMap[n] || 0) + 1);
 
-        // 1. Bank Frequency Check
         rules.push({
             id: 'rule_bank_freq',
             text: 'Dùng đúng 10 thẻ số có trong kho',
@@ -230,7 +245,6 @@ class LogicGame {
             }
         });
 
-        // 2. Non-adjacency for duplicate numbers
         const dupes = Object.keys(countsMap).filter(n => countsMap[n] >= 2).map(Number);
         dupes.forEach(dupeNum => {
             rules.push({
@@ -253,7 +267,6 @@ class LogicGame {
             });
         });
 
-        // 3. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10)
         const sumFirst3 = solution[0] + solution[1] + solution[2];
         const sumLast3 = solution[7] + solution[8] + solution[9];
         const sumDiff = sumFirst3 - sumLast3;
@@ -277,7 +290,6 @@ class LogicGame {
             }
         });
 
-        // 4. Parity check
         const oddsInSolution = solution.filter(n => n % 2 !== 0).length;
         if (oddsInSolution >= 3) {
             rules.push({
@@ -301,7 +313,6 @@ class LogicGame {
             });
         }
 
-        // 5. Boundary comparison
         const firstVal = solution[0];
         const lastVal = solution[9];
         let boundText = 'Số ở ô đầu tiên bằng số ở ô cuối cùng';
@@ -320,7 +331,6 @@ class LogicGame {
             }
         });
 
-        // 6. Expert Extra Rules
         if (isExpert) {
             const prod = solution[4] * solution[5];
             const isEvenProd = prod % 2 === 0;
@@ -361,7 +371,6 @@ class LogicGame {
     selectSlot(slotIndex) {
         if (this.isGameOver) return;
 
-        // Case 1: Placing tile from bank into slot
         if (this.selectedTile && this.selectedTile.source === 'bank') {
             const prevNum = this.slots[slotIndex];
             this.saveHistory();
@@ -376,12 +385,9 @@ class LogicGame {
 
             this.selectedTile = null;
             window.soundSystem.playPlace();
-        }
-        // Case 2: Moving tile between slots
-        else if (this.selectedTile && this.selectedTile.source === 'slot') {
+        } else if (this.selectedTile && this.selectedTile.source === 'slot') {
             const fromIndex = this.selectedTile.index;
             if (fromIndex === slotIndex) {
-                // Clicked same slot -> return to bank
                 this.saveHistory();
                 const num = this.slots[slotIndex];
                 this.slots[slotIndex] = null;
@@ -390,7 +396,6 @@ class LogicGame {
                 this.selectedTile = null;
                 window.soundSystem.playRemove();
             } else {
-                // Swap / Move between slots
                 this.saveHistory();
                 const temp = this.slots[slotIndex];
                 this.slots[slotIndex] = this.slots[fromIndex];
@@ -398,9 +403,7 @@ class LogicGame {
                 this.selectedTile = null;
                 window.soundSystem.playPlace();
             }
-        }
-        // Case 3: Clicking a filled slot (select or return to bank)
-        else if (this.slots[slotIndex] !== null) {
+        } else if (this.slots[slotIndex] !== null) {
             this.saveHistory();
             const num = this.slots[slotIndex];
             this.slots[slotIndex] = null;
@@ -481,17 +484,25 @@ class LogicGame {
     }
 
     /* ==========================================================================
-       WIN CONDITION & VALIDATION
+       WIN CONDITION & MULTIPLAYER NOTIFICATIONS
        ========================================================================== */
 
     checkWinCondition(isManualCheck = false) {
         const isFull = this.slots.every(s => s !== null);
-        let allSatisfied = true;
+        let satisfiedCount = 0;
 
         this.rules.forEach(rule => {
             const res = rule.check(this.slots);
-            if (res !== true) allSatisfied = false;
+            if (res === true) satisfiedCount++;
         });
+
+        const allSatisfied = satisfiedCount === this.rules.length;
+
+        // Broadcast progress in multiplayer mode
+        if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+            const filledCount = this.slots.filter(s => s !== null).length;
+            window.multiplayer.sendProgress(filledCount, satisfiedCount);
+        }
 
         if (isFull && allSatisfied) {
             this.onWin();
@@ -512,11 +523,32 @@ class LogicGame {
         window.soundSystem.playVictory();
         window.confettiSystem.start();
 
+        if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+            window.multiplayer.sendWin();
+        }
+
+        if (this.dom.victoryTitle) this.dom.victoryTitle.textContent = "XUẤT SẮC! BẠN ĐÃ THẮNG";
+        if (this.dom.victoryDesc) this.dom.victoryDesc.innerHTML = `Bạn đã giải thành công dãy số logic trong thời gian <strong id="final-time">${this.dom.timerDisplay.textContent}</strong>!`;
+
         this.dom.victorySequence.innerHTML = this.slots.map(num => 
             `<div class="tile" data-num="${num}">${num}</div>`
         ).join('');
 
-        this.dom.finalTime.textContent = this.dom.timerDisplay.textContent;
+        this.showModal(this.dom.victoryModal);
+    }
+
+    onOpponentWon() {
+        if (this.isGameOver) return;
+        this.isGameOver = true;
+        this.stopTimer();
+
+        if (this.dom.victoryTitle) this.dom.victoryTitle.textContent = "ĐỐI THỦ ĐÃ THẮNG!";
+        if (this.dom.victoryDesc) this.dom.victoryDesc.innerHTML = `Đối thủ đã giải đố thành công trước bạn! Rút kinh nghiệm cho ván sau nhé.`;
+
+        this.dom.victorySequence.innerHTML = this.secretSolution.map(num => 
+            `<div class="tile" data-num="${num}">${num}</div>`
+        ).join('');
+
         this.showModal(this.dom.victoryModal);
     }
 
@@ -544,8 +576,8 @@ class LogicGame {
         this.dom.timerDisplay.textContent = "00:00";
     }
 
-    showModal(modal) { modal.classList.add('active'); }
-    hideModal(modal) { modal.classList.remove('active'); }
+    showModal(modal) { if (modal) modal.classList.add('active'); }
+    hideModal(modal) { if (modal) modal.classList.remove('active'); }
 
     render() {
         // Render 10 Slots
@@ -571,7 +603,7 @@ class LogicGame {
             this.dom.slotsGrid.appendChild(slotEl);
         });
 
-        // Render Bank Tiles directly from this.bank (always sorted, 1-to-1 index matching)
+        // Render Bank Tiles
         this.dom.bankTiles.innerHTML = '';
         this.bank.forEach((num, bankIdx) => {
             const tileEl = document.createElement('div');
