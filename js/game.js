@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (RANDOM MULTI-DIGIT)
    ========================================================================== */
 
 class LogicGame {
@@ -8,7 +8,7 @@ class LogicGame {
         this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         
         this.slots = Array(10).fill(null);
-        this.bank = [...this.INITIAL_NUMBERS];
+        this.bank = [];
         this.secretSolution = null;
         this.rules = [];
         this.history = [];
@@ -93,11 +93,13 @@ class LogicGame {
             this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
             this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
         } else if (this.difficulty === 'standard_digits') {
-            this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-            this.dom.currentModeLabel.textContent = 'Trung Bình (0 - 9)';
+            // Generate 10 random numbers from 0 to 9 (duplicates allowed!)
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
+            this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
         } else {
-            this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-            this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (0 - 9 Hại Não)';
+            // Expert mode with random 10 numbers from 0 to 9
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
+            this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
         }
 
         this.slots = Array(10).fill(null);
@@ -134,11 +136,15 @@ class LogicGame {
                 if (!threeIndices.some(idx => Math.abs(idx - oneIdx) === 1)) continue;
                 return arr;
             } else {
-                // For 0-9 digits, verify it passes parity & prime structure constraints
-                const zeroIdx = arr.indexOf(0);
-                const nineIdx = arr.indexOf(9);
-                if (zeroIdx === 0 || zeroIdx === 9 || nineIdx === 0 || nineIdx === 9) continue;
-                return arr;
+                // Check if any duplicated number is adjacent, try to avoid adjacent identical numbers
+                let valid = true;
+                for (let i = 0; i < 9; i++) {
+                    if (arr[i] === arr[i+1]) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) return arr;
             }
         }
         return [...this.INITIAL_NUMBERS].sort(() => Math.random() - 0.5);
@@ -148,9 +154,9 @@ class LogicGame {
         if (this.difficulty === 'classic') {
             return this.generateClassicRules(solution);
         } else if (this.difficulty === 'standard_digits') {
-            return this.generateStandardDigitsRules(solution);
+            return this.generateRandomDigitsRules(solution, false);
         } else {
-            return this.generateExpertDigitsRules(solution);
+            return this.generateRandomDigitsRules(solution, true);
         }
     }
 
@@ -198,103 +204,67 @@ class LogicGame {
         return rules;
     }
 
-    generateStandardDigitsRules(solution) {
-        const rules = [
-            {
-                id: 'rule_unique',
-                text: 'Gồm 10 chữ số phân biệt từ 0 đến 9',
+    generateRandomDigitsRules(solution, isExpert = false) {
+        const rules = [];
+
+        // 1. Frequency breakdown rule text
+        const countsMap = {};
+        solution.forEach(n => countsMap[n] = (countsMap[n] || 0) + 1);
+        const freqTextParts = Object.entries(countsMap).map(([num, count]) => `${count}x[${num}]`).join(', ');
+
+        rules.push({
+            id: 'rule_bank_freq',
+            text: `Kho số gồm đúng các thẻ số: ${freqTextParts}`,
+            check: (slots) => {
+                const currentCounts = {};
+                slots.forEach(n => { if (n !== null) currentCounts[n] = (currentCounts[n] || 0) + 1; });
+                
+                // Over-limit check
+                for (let num in currentCounts) {
+                    if (currentCounts[num] > (countsMap[num] || 0)) return false;
+                }
+                const filled = slots.filter(n => n !== null).length;
+                if (filled === 10) {
+                    for (let num in countsMap) {
+                        if (currentCounts[num] !== countsMap[num]) return false;
+                    }
+                    return true;
+                }
+                return null;
+            }
+        });
+
+        // 2. Non-adjacency for duplicate numbers
+        const dupes = Object.keys(countsMap).filter(n => countsMap[n] >= 2).map(Number);
+        dupes.forEach(dupeNum => {
+            rules.push({
+                id: `rule_no_adj_${dupeNum}`,
+                text: `Tất cả các số ${dupeNum} (${countsMap[dupeNum]} số) KHÔNG được nằm kề cạnh nhau`,
                 check: (slots) => {
-                    const filled = slots.filter(n => n !== null);
-                    const unique = new Set(filled);
-                    if (filled.length !== unique.size) return false;
-                    return filled.length === 10 ? true : null;
+                    for (let i = 0; i < 9; i++) {
+                        if (slots[i] === dupeNum && slots[i+1] === dupeNum) return false;
+                    }
+                    const placed = [];
+                    for (let i = 0; i < 10; i++) if (slots[i] === dupeNum) placed.push(i);
+                    if (placed.length === countsMap[dupeNum]) {
+                        for (let k = 0; k < placed.length - 1; k++) {
+                            if (placed[k+1] - placed[k] <= 1) return false;
+                        }
+                        return true;
+                    }
+                    return null;
                 }
-            }
-        ];
-
-        // Zero and Nine boundary rule
-        const zeroIdx = solution.indexOf(0);
-        const nineIdx = solution.indexOf(9);
-
-        rules.push({
-            id: 'rule_boundary_0_9',
-            text: 'Số 0 và số 9 KHÔNG được nằm ở ô đầu tiên (#1) hay ô cuối cùng (#10)',
-            check: (slots) => {
-                if (slots[0] === 0 || slots[0] === 9 || slots[9] === 0 || slots[9] === 9) return false;
-                if (slots.includes(0) && slots.includes(9)) return true;
-                return null;
-            }
+            });
         });
 
-        // Relative position: 9 is left or right of 0
-        const isNineLeft = nineIdx < zeroIdx;
-        rules.push({
-            id: 'rule_nine_rel_zero',
-            text: `Số 9 nằm ở bên ${isNineLeft ? 'TRÁI' : 'PHẢI'} của số 0`,
-            check: (slots) => {
-                const i9 = slots.indexOf(9);
-                const i0 = slots.indexOf(0);
-                if (i9 !== -1 && i0 !== -1) {
-                    return isNineLeft ? (i9 < i0) : (i9 > i0);
-                }
-                return null;
-            }
-        });
-
-        // Position of 5
-        const fiveIdx = solution.indexOf(5);
-        rules.push({
-            id: 'rule_five_pos',
-            text: `Số 5 nằm ở nửa ${fiveIdx < 5 ? 'ĐẦU (ô #1 - #5)' : 'SAU (ô #6 - #10)'} của dãy`,
-            check: (slots) => {
-                const i5 = slots.indexOf(5);
-                if (i5 !== -1) {
-                    return fiveIdx < 5 ? (i5 < 5) : (i5 >= 5);
-                }
-                return null;
-            }
-        });
-
-        // Exact distance between 0 and 9
-        const dist = Math.abs(nineIdx - zeroIdx);
-        rules.push({
-            id: 'rule_dist_0_9',
-            text: `Khoảng cách giữa số 0 và số 9 đúng bằng ${dist} vị trí (${dist - 1} ô trống ở giữa)`,
-            check: (slots) => {
-                const i9 = slots.indexOf(9);
-                const i0 = slots.indexOf(0);
-                if (i9 !== -1 && i0 !== -1) {
-                    return Math.abs(i9 - i0) === dist;
-                }
-                return null;
-            }
-        });
-
-        return rules;
-    }
-
-    generateExpertDigitsRules(solution) {
-        const rules = [
-            {
-                id: 'rule_unique',
-                text: 'Gồm 10 chữ số phân biệt từ 0 đến 9',
-                check: (slots) => {
-                    const filled = slots.filter(n => n !== null);
-                    const unique = new Set(filled);
-                    if (filled.length !== unique.size) return false;
-                    return filled.length === 10 ? true : null;
-                }
-            }
-        ];
-
-        // 1. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10)
+        // 3. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10)
         const sumFirst3 = solution[0] + solution[1] + solution[2];
         const sumLast3 = solution[7] + solution[8] + solution[9];
         const sumDiff = sumFirst3 - sumLast3;
 
         rules.push({
             id: 'rule_sum_balance',
-            text: `Tổng 3 ô đầu tiên (#1+#2+#3) ${sumDiff === 0 ? 'BẰNG' : (sumDiff > 0 ? `LỚN HƠN (${sumDiff} đơn vị)` : `NHO HƠN (${Math.abs(sumDiff)} đơn vị)`)} tổng 3 ô cuối (#8+#9+#10)`,
+            text: `Tổng 3 ô đầu tiên (#1+#2+#3) ${sumDiff === 0 ? 'BẰNG' : (sumDiff > 0 ? `LỚN HƠN (${sumDiff} đơn vị)` : `NHỎ HƠN (${Math.abs(sumDiff)} đơn vị)`)} tổng 3 ô cuối (#8+#9+#10)`,
             check: (slots) => {
                 const f0 = slots[0], f1 = slots[1], f2 = slots[2];
                 const l7 = slots[7], l8 = slots[8], l9 = slots[9];
@@ -307,102 +277,60 @@ class LogicGame {
             }
         });
 
-        // 2. Parity rule: No 2 odds adjacent OR odds parity
-        rules.push({
-            id: 'rule_no_adjacent_odds',
-            text: 'KHÔNG được có 2 số lẻ đứng kề cạnh nhau',
-            check: (slots) => {
-                for (let i = 0; i < 9; i++) {
-                    if (slots[i] !== null && slots[i+1] !== null) {
-                        if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
-                    }
-                }
-                const filledOdds = slots.filter(n => n !== null && n % 2 !== 0);
-                if (filledOdds.length === 5) {
+        // 4. Parity check: Odds / Evens adjacent rule
+        const oddsInSolution = solution.filter(n => n % 2 !== 0).length;
+        if (oddsInSolution >= 3) {
+            rules.push({
+                id: 'rule_odds_adjacent',
+                text: 'KHÔNG được có 2 số lẻ đứng kề cạnh nhau',
+                check: (slots) => {
                     for (let i = 0; i < 9; i++) {
-                        if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
-                    }
-                    return true;
-                }
-                return null;
-            }
-        });
-
-        // 3. Prime numbers rule: Primes (2,3,5,7) adjacent to an even number
-        rules.push({
-            id: 'rule_primes_even_neighbor',
-            text: 'Mọi số nguyên tố (2, 3, 5, 7) phải đứng kề ít nhất 1 số chẵn',
-            check: (slots) => {
-                const primes = [2, 3, 5, 7];
-                for (let p of primes) {
-                    const idx = slots.indexOf(p);
-                    if (idx !== -1) {
-                        const leftEven = idx > 0 && slots[idx-1] !== null && slots[idx-1] % 2 === 0;
-                        const rightEven = idx < 9 && slots[idx+1] !== null && slots[idx+1] % 2 === 0;
-                        if (!leftEven && !rightEven) {
-                            const leftFilled = idx === 0 || slots[idx-1] !== null;
-                            const rightFilled = idx === 9 || slots[idx+1] !== null;
-                            if (leftFilled && rightFilled) return false;
+                        if (slots[i] !== null && slots[i+1] !== null) {
+                            if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
                         }
                     }
-                }
-                const placedPrimes = primes.filter(p => slots.includes(p));
-                if (placedPrimes.length === 4) {
-                    let ok = true;
-                    for (let p of primes) {
-                        const idx = slots.indexOf(p);
-                        const leftEven = idx > 0 && slots[idx-1] !== null && slots[idx-1] % 2 === 0;
-                        const rightEven = idx < 9 && slots[idx+1] !== null && slots[idx+1] % 2 === 0;
-                        if (!leftEven && !rightEven) ok = false;
+                    const filledOdds = slots.filter(n => n !== null && n % 2 !== 0);
+                    if (filledOdds.length === oddsInSolution) {
+                        for (let i = 0; i < 9; i++) {
+                            if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
+                        }
+                        return true;
                     }
-                    return ok ? true : false;
+                    return null;
                 }
-                return null;
-            }
-        });
+            });
+        }
 
-        // 4. Increasing triad rule
-        let triadStart = 3; // check slots #4, #5, #6 (indices 3, 4, 5)
-        const isIncreasing = solution[triadStart] < solution[triadStart+1] && solution[triadStart+1] < solution[triadStart+2];
-        rules.push({
-            id: 'rule_triad_order',
-            text: `Cụm 3 ô ở giữa (#4, #5, #6) ${isIncreasing ? 'tạo thành dãy TĂNG DẦN' : 'KHÔNG tăng dần theo thứ tự'}`,
-            check: (slots) => {
-                const a = slots[3], b = slots[4], c = slots[5];
-                if (a !== null && b !== null && c !== null) {
-                    const inc = a < b && b < c;
-                    return isIncreasing ? inc : !inc;
-                }
-                return null;
-            }
-        });
-
-        // 5. Boundary comparison: Slot #1 vs Slot #10
-        const firstIsGreater = solution[0] > solution[9];
+        // 5. Boundary rule: Slot #1 vs Slot #10
+        const firstVal = solution[0];
+        const lastVal = solution[9];
         rules.push({
             id: 'rule_boundary_cmp',
-            text: `Số tại ô đầu tiên (#1) ${firstIsGreater ? 'LỚN HƠN' : 'NHỎ HƠN'} số tại ô cuối cùng (#10)`,
+            text: `Số ở ô đầu tiên (#1 = ${firstVal}) ${firstVal >= lastVal ? 'LỚN HƠN HOẶC BẰNG' : 'NHỎ HƠN'} số ở ô cuối cùng (#10 = ${lastVal})`,
             check: (slots) => {
                 if (slots[0] !== null && slots[9] !== null) {
-                    return firstIsGreater ? (slots[0] > slots[9]) : (slots[0] < slots[9]);
+                    return firstVal >= lastVal ? (slots[0] >= slots[9]) : (slots[0] < slots[9]);
                 }
                 return null;
             }
         });
 
-        // 6. Product of center elements
-        const centerProd = solution[4] * solution[5];
-        const isEvenProd = centerProd % 2 === 0;
-        rules.push({
-            id: 'rule_center_prod',
-            text: `Tích 2 ô trung tâm (#5 × #6) là một số ${isEvenProd ? 'CHẴN' : 'LẺ'} (${centerProd})`,
-            check: (slots) => {
-                if (slots[4] !== null && slots[5] !== null) {
-                    return (slots[4] * slots[5]) % 2 === (isEvenProd ? 0 : 1);
+        // 6. Expert Extra Rules
+        if (isExpert) {
+            // Product of middle slots #5 and #6
+            const prod = solution[4] * solution[5];
+            const isEvenProd = prod % 2 === 0;
+            rules.push({
+                id: 'rule_center_prod',
+                text: `Tích 2 ô trung tâm (#5 × #6) là một số ${isEvenProd ? 'CHẴN' : 'LẺ'} (${prod})`,
+                check: (slots) => {
+                    if (slots[4] !== null && slots[5] !== null) {
+                        return (slots[4] * slots[5]) % 2 === (isEvenProd ? 0 : 1);
+                    }
+                    return null;
                 }
-                return null;
-            }
-        });
+            });
+        }
 
         return rules;
     }
