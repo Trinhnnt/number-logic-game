@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "number-logic-game-10",
+  "builds": [
+    {
+      "src": "**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}
