@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (RANDOM MULTI-DIGIT)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (CLEAN TEXT)
    ========================================================================== */
 
 class LogicGame {
@@ -93,11 +93,9 @@ class LogicGame {
             this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
             this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
         } else if (this.difficulty === 'standard_digits') {
-            // Generate 10 random numbers from 0 to 9 (duplicates allowed!)
             this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
             this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
         } else {
-            // Expert mode with random 10 numbers from 0 to 9
             this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
             this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
         }
@@ -136,7 +134,6 @@ class LogicGame {
                 if (!threeIndices.some(idx => Math.abs(idx - oneIdx) === 1)) continue;
                 return arr;
             } else {
-                // Check if any duplicated number is adjacent, try to avoid adjacent identical numbers
                 let valid = true;
                 for (let i = 0; i < 9; i++) {
                     if (arr[i] === arr[i+1]) {
@@ -164,7 +161,7 @@ class LogicGame {
         const rules = [
             {
                 id: 'rule_freq',
-                text: 'Có đúng 1x[1], 2x[2], 3x[3] và 4x[4]',
+                text: 'Dùng đúng 1 số 1, 2 số 2, 3 số 3 và 4 số 4',
                 check: (slots) => {
                     const counts = {1:0, 2:0, 3:0, 4:0};
                     slots.forEach(n => { if (n !== null) counts[n]++; });
@@ -177,7 +174,7 @@ class LogicGame {
             },
             {
                 id: 'rule_twos_adjacent',
-                text: 'Hai số 2 KHÔNG được nằm kề cạnh nhau',
+                text: 'Hai số 2 không nằm kề cạnh nhau',
                 check: (slots) => {
                     for (let i = 0; i < 9; i++) {
                         if (slots[i] === 2 && slots[i+1] === 2) return false;
@@ -189,7 +186,7 @@ class LogicGame {
             },
             {
                 id: 'rule_three_next_to_one',
-                text: 'Có ít nhất một số 3 đứng kề cạnh số 1',
+                text: 'Có ít nhất 1 số 3 đứng kề cạnh số 1',
                 check: (slots) => {
                     const oneIdx = slots.indexOf(1);
                     if (oneIdx === -1) return null;
@@ -207,19 +204,17 @@ class LogicGame {
     generateRandomDigitsRules(solution, isExpert = false) {
         const rules = [];
 
-        // 1. Frequency breakdown rule text
         const countsMap = {};
         solution.forEach(n => countsMap[n] = (countsMap[n] || 0) + 1);
-        const freqTextParts = Object.entries(countsMap).map(([num, count]) => `${count}x[${num}]`).join(', ');
 
+        // 1. Bank Frequency Check
         rules.push({
             id: 'rule_bank_freq',
-            text: `Kho số gồm đúng các thẻ số: ${freqTextParts}`,
+            text: 'Dùng đúng 10 thẻ số có trong kho',
             check: (slots) => {
                 const currentCounts = {};
                 slots.forEach(n => { if (n !== null) currentCounts[n] = (currentCounts[n] || 0) + 1; });
                 
-                // Over-limit check
                 for (let num in currentCounts) {
                     if (currentCounts[num] > (countsMap[num] || 0)) return false;
                 }
@@ -239,7 +234,7 @@ class LogicGame {
         dupes.forEach(dupeNum => {
             rules.push({
                 id: `rule_no_adj_${dupeNum}`,
-                text: `Tất cả các số ${dupeNum} (${countsMap[dupeNum]} số) KHÔNG được nằm kề cạnh nhau`,
+                text: `Các số ${dupeNum} không nằm kề cạnh nhau`,
                 check: (slots) => {
                     for (let i = 0; i < 9; i++) {
                         if (slots[i] === dupeNum && slots[i+1] === dupeNum) return false;
@@ -262,9 +257,13 @@ class LogicGame {
         const sumLast3 = solution[7] + solution[8] + solution[9];
         const sumDiff = sumFirst3 - sumLast3;
 
+        let sumText = 'Tổng 3 ô đầu tiên bằng tổng 3 ô cuối';
+        if (sumDiff > 0) sumText = 'Tổng 3 ô đầu tiên lớn hơn tổng 3 ô cuối';
+        else if (sumDiff < 0) sumText = 'Tổng 3 ô đầu tiên nhỏ hơn tổng 3 ô cuối';
+
         rules.push({
             id: 'rule_sum_balance',
-            text: `Tổng 3 ô đầu tiên (#1+#2+#3) ${sumDiff === 0 ? 'BẰNG' : (sumDiff > 0 ? `LỚN HƠN (${sumDiff} đơn vị)` : `NHỎ HƠN (${Math.abs(sumDiff)} đơn vị)`)} tổng 3 ô cuối (#8+#9+#10)`,
+            text: sumText,
             check: (slots) => {
                 const f0 = slots[0], f1 = slots[1], f2 = slots[2];
                 const l7 = slots[7], l8 = slots[8], l9 = slots[9];
@@ -277,12 +276,12 @@ class LogicGame {
             }
         });
 
-        // 4. Parity check: Odds / Evens adjacent rule
+        // 4. Parity check
         const oddsInSolution = solution.filter(n => n % 2 !== 0).length;
         if (oddsInSolution >= 3) {
             rules.push({
                 id: 'rule_odds_adjacent',
-                text: 'KHÔNG được có 2 số lẻ đứng kề cạnh nhau',
+                text: 'Không có 2 số lẻ nào nằm kề cạnh nhau',
                 check: (slots) => {
                     for (let i = 0; i < 9; i++) {
                         if (slots[i] !== null && slots[i+1] !== null) {
@@ -301,15 +300,20 @@ class LogicGame {
             });
         }
 
-        // 5. Boundary rule: Slot #1 vs Slot #10
+        // 5. Boundary comparison
         const firstVal = solution[0];
         const lastVal = solution[9];
+        let boundText = 'Số ở ô đầu tiên bằng số ở ô cuối cùng';
+        if (firstVal > lastVal) boundText = 'Số ở ô đầu tiên lớn hơn số ở ô cuối cùng';
+        else if (firstVal < lastVal) boundText = 'Số ở ô đầu tiên nhỏ hơn số ở ô cuối cùng';
+
         rules.push({
             id: 'rule_boundary_cmp',
-            text: `Số ở ô đầu tiên (#1 = ${firstVal}) ${firstVal >= lastVal ? 'LỚN HƠN HOẶC BẰNG' : 'NHỎ HƠN'} số ở ô cuối cùng (#10 = ${lastVal})`,
+            text: boundText,
             check: (slots) => {
                 if (slots[0] !== null && slots[9] !== null) {
-                    return firstVal >= lastVal ? (slots[0] >= slots[9]) : (slots[0] < slots[9]);
+                    if (firstVal === lastVal) return slots[0] === slots[9];
+                    return firstVal > lastVal ? (slots[0] > slots[9]) : (slots[0] < slots[9]);
                 }
                 return null;
             }
@@ -317,12 +321,11 @@ class LogicGame {
 
         // 6. Expert Extra Rules
         if (isExpert) {
-            // Product of middle slots #5 and #6
             const prod = solution[4] * solution[5];
             const isEvenProd = prod % 2 === 0;
             rules.push({
                 id: 'rule_center_prod',
-                text: `Tích 2 ô trung tâm (#5 × #6) là một số ${isEvenProd ? 'CHẴN' : 'LẺ'} (${prod})`,
+                text: `Tích 2 ô trung tâm là một số ${isEvenProd ? 'chẵn' : 'lẻ'}`,
                 check: (slots) => {
                     if (slots[4] !== null && slots[5] !== null) {
                         return (slots[4] * slots[5]) % 2 === (isEvenProd ? 0 : 1);
