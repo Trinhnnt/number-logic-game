@@ -1,16 +1,18 @@
 /* ==========================================================================
-   SỐ LOGIC 10 - GAME ENGINE & PUZZLE GENERATOR
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR
    ========================================================================== */
 
 class LogicGame {
     constructor() {
-        this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
+        this.difficulty = 'standard_digits'; // 'classic' | 'standard_digits' | 'expert_digits'
+        this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        
         this.slots = Array(10).fill(null);
         this.bank = [...this.INITIAL_NUMBERS];
         this.secretSolution = null;
         this.rules = [];
         this.history = [];
-        this.selectedTile = null; // { num, source: 'bank'|'slot', index }
+        this.selectedTile = null;
         this.timer = 0;
         this.timerInterval = null;
         this.hintsCount = 3;
@@ -23,6 +25,8 @@ class LogicGame {
 
     initDOM() {
         this.dom = {
+            difficultySelect: document.getElementById('difficulty-select'),
+            currentModeLabel: document.getElementById('current-mode-label'),
             slotsGrid: document.getElementById('slots-grid'),
             bankTiles: document.getElementById('bank-tiles'),
             rulesList: document.getElementById('rules-list'),
@@ -47,7 +51,11 @@ class LogicGame {
     }
 
     bindEvents() {
-        // Control buttons
+        this.dom.difficultySelect.addEventListener('change', (e) => {
+            this.difficulty = e.target.value;
+            this.startNewGame();
+        });
+
         this.dom.btnUndo.addEventListener('click', () => this.undo());
         this.dom.btnClear.addEventListener('click', () => this.clearBoard());
         this.dom.btnHint.addEventListener('click', () => this.giveHint());
@@ -59,7 +67,6 @@ class LogicGame {
             this.startNewGame();
         });
 
-        // Sound toggle
         this.dom.btnSound.addEventListener('click', () => {
             const enabled = window.soundSystem.toggle();
             this.dom.btnSound.innerHTML = enabled ? 
@@ -67,13 +74,11 @@ class LogicGame {
                 '<i class="fa-solid fa-volume-xmark"></i>';
         });
 
-        // Help Modal
         this.dom.btnHelp.addEventListener('click', () => this.showModal(this.dom.helpModal));
         document.querySelectorAll('.close-modal-btn').forEach(btn => {
             btn.addEventListener('click', () => this.hideModal(this.dom.helpModal));
         });
 
-        // Close modal on click outside
         window.addEventListener('click', (e) => {
             if (e.target === this.dom.helpModal) this.hideModal(this.dom.helpModal);
         });
@@ -84,6 +89,17 @@ class LogicGame {
        ========================================================================== */
 
     startNewGame() {
+        if (this.difficulty === 'classic') {
+            this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
+            this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
+        } else if (this.difficulty === 'standard_digits') {
+            this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            this.dom.currentModeLabel.textContent = 'Trung Bình (0 - 9)';
+        } else {
+            this.INITIAL_NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (0 - 9 Hại Não)';
+        }
+
         this.slots = Array(10).fill(null);
         this.bank = [...this.INITIAL_NUMBERS];
         this.history = [];
@@ -91,9 +107,7 @@ class LogicGame {
         this.hintsCount = 3;
         this.isGameOver = false;
 
-        // Generate secret valid sequence
         this.secretSolution = this.generateValidSequence();
-        // Generate rules
         this.rules = this.generateRules(this.secretSolution);
 
         this.resetTimer();
@@ -106,70 +120,65 @@ class LogicGame {
         while (attempts < 2000) {
             attempts++;
             let arr = [...this.INITIAL_NUMBERS].sort(() => Math.random() - 0.5);
-            
-            // Check Rule 2: Two 2s not adjacent
-            let isValid = true;
-            let twoIndices = [];
-            let oneIdx = -1;
-            let threeIndices = [];
 
-            for (let i = 0; i < arr.length; i++) {
-                if (arr[i] === 2) twoIndices.push(i);
-                if (arr[i] === 1) oneIdx = i;
-                if (arr[i] === 3) threeIndices.push(i);
-            }
-
-            // Check 2s distance > 1
-            if (Math.abs(twoIndices[0] - twoIndices[1]) <= 1) isValid = false;
-
-            // Check at least one 3 is adjacent to 1
-            let hasThreeAdjacentToOne = threeIndices.some(idx => Math.abs(idx - oneIdx) === 1);
-            if (!hasThreeAdjacentToOne) isValid = false;
-
-            if (isValid) {
-                console.log("Generated Secret Solution:", arr);
+            if (this.difficulty === 'classic') {
+                let twoIndices = [];
+                let oneIdx = -1;
+                let threeIndices = [];
+                for (let i = 0; i < 10; i++) {
+                    if (arr[i] === 2) twoIndices.push(i);
+                    if (arr[i] === 1) oneIdx = i;
+                    if (arr[i] === 3) threeIndices.push(i);
+                }
+                if (Math.abs(twoIndices[0] - twoIndices[1]) <= 1) continue;
+                if (!threeIndices.some(idx => Math.abs(idx - oneIdx) === 1)) continue;
+                return arr;
+            } else {
+                // For 0-9 digits, verify it passes parity & prime structure constraints
+                const zeroIdx = arr.indexOf(0);
+                const nineIdx = arr.indexOf(9);
+                if (zeroIdx === 0 || zeroIdx === 9 || nineIdx === 0 || nineIdx === 9) continue;
                 return arr;
             }
         }
-
-        // Fallback default valid sequence
-        return [4, 2, 4, 3, 1, 3, 4, 2, 4, 3];
+        return [...this.INITIAL_NUMBERS].sort(() => Math.random() - 0.5);
     }
 
     generateRules(solution) {
-        // Base mandatory user rules
+        if (this.difficulty === 'classic') {
+            return this.generateClassicRules(solution);
+        } else if (this.difficulty === 'standard_digits') {
+            return this.generateStandardDigitsRules(solution);
+        } else {
+            return this.generateExpertDigitsRules(solution);
+        }
+    }
+
+    generateClassicRules(solution) {
         const rules = [
             {
                 id: 'rule_freq',
-                text: 'Có đúng 1 số 1, 2 số 2, 3 số 3 và 4 số 4',
+                text: 'Có đúng 1x[1], 2x[2], 3x[3] và 4x[4]',
                 check: (slots) => {
                     const counts = {1:0, 2:0, 3:0, 4:0};
-                    slots.forEach(n => { if (n) counts[n]++; });
-                    // If full 10 slots filled
+                    slots.forEach(n => { if (n !== null) counts[n]++; });
                     if (slots.filter(n => n !== null).length === 10) {
                         return counts[1] === 1 && counts[2] === 2 && counts[3] === 3 && counts[4] === 4;
                     }
-                    // Over-limit check
                     if (counts[1] > 1 || counts[2] > 2 || counts[3] > 3 || counts[4] > 4) return false;
-                    return null; // pending
+                    return null;
                 }
             },
             {
                 id: 'rule_twos_adjacent',
                 text: 'Hai số 2 KHÔNG được nằm kề cạnh nhau',
                 check: (slots) => {
-                    const twos = [];
-                    for (let i = 0; i < 10; i++) {
-                        if (slots[i] === 2) twos.push(i);
-                    }
-                    if (twos.length >= 2) {
-                        return Math.abs(twos[0] - twos[1]) > 1;
-                    }
-                    // Check if two adjacent 2s exist right now
                     for (let i = 0; i < 9; i++) {
                         if (slots[i] === 2 && slots[i+1] === 2) return false;
                     }
-                    return null;
+                    const twos = [];
+                    for (let i = 0; i < 10; i++) if (slots[i] === 2) twos.push(i);
+                    return twos.length === 2 ? Math.abs(twos[1] - twos[0]) > 1 : null;
                 }
             },
             {
@@ -178,85 +187,222 @@ class LogicGame {
                 check: (slots) => {
                     const oneIdx = slots.indexOf(1);
                     if (oneIdx === -1) return null;
-
-                    const leftIsThree = oneIdx > 0 && slots[oneIdx - 1] === 3;
-                    const rightIsThree = oneIdx < 9 && slots[oneIdx + 1] === 3;
-
-                    if (leftIsThree || rightIsThree) return true;
-
-                    // If neighbors are filled with non-3 numbers, it's invalid
-                    const leftFilled = oneIdx === 0 || slots[oneIdx - 1] !== null;
-                    const rightFilled = oneIdx === 9 || slots[oneIdx + 1] !== null;
-
-                    if (leftFilled && rightFilled) return false;
-
+                    const left3 = oneIdx > 0 && slots[oneIdx - 1] === 3;
+                    const right3 = oneIdx < 9 && slots[oneIdx + 1] === 3;
+                    if (left3 || right3) return true;
+                    if ((oneIdx === 0 || slots[oneIdx - 1] !== null) && (oneIdx === 9 || slots[oneIdx + 1] !== null)) return false;
                     return null;
                 }
             }
         ];
+        return rules;
+    }
 
-        // Additional generated location clues based on secretSolution
-        const extraCluesCandidates = [];
+    generateStandardDigitsRules(solution) {
+        const rules = [
+            {
+                id: 'rule_unique',
+                text: 'Gồm 10 chữ số phân biệt từ 0 đến 9',
+                check: (slots) => {
+                    const filled = slots.filter(n => n !== null);
+                    const unique = new Set(filled);
+                    if (filled.length !== unique.size) return false;
+                    return filled.length === 10 ? true : null;
+                }
+            }
+        ];
 
-        // Clue: Distance between 2s
-        const twos = [];
-        for (let i = 0; i < 10; i++) if (solution[i] === 2) twos.push(i);
-        const distTwos = Math.abs(twos[1] - twos[0]);
-        extraCluesCandidates.push({
-            id: 'rule_dist_twos',
-            text: `Hai số 2 cách nhau đúng ${distTwos - 1} ô trống (khoảng cách là ${distTwos} vị trí)`,
+        // Zero and Nine boundary rule
+        const zeroIdx = solution.indexOf(0);
+        const nineIdx = solution.indexOf(9);
+
+        rules.push({
+            id: 'rule_boundary_0_9',
+            text: 'Số 0 và số 9 KHÔNG được nằm ở ô đầu tiên (#1) hay ô cuối cùng (#10)',
             check: (slots) => {
-                const currentTwos = [];
-                for (let i = 0; i < 10; i++) if (slots[i] === 2) currentTwos.push(i);
-                if (currentTwos.length === 2) {
-                    return Math.abs(currentTwos[1] - currentTwos[0]) === distTwos;
+                if (slots[0] === 0 || slots[0] === 9 || slots[9] === 0 || slots[9] === 9) return false;
+                if (slots.includes(0) && slots.includes(9)) return true;
+                return null;
+            }
+        });
+
+        // Relative position: 9 is left or right of 0
+        const isNineLeft = nineIdx < zeroIdx;
+        rules.push({
+            id: 'rule_nine_rel_zero',
+            text: `Số 9 nằm ở bên ${isNineLeft ? 'TRÁI' : 'PHẢI'} của số 0`,
+            check: (slots) => {
+                const i9 = slots.indexOf(9);
+                const i0 = slots.indexOf(0);
+                if (i9 !== -1 && i0 !== -1) {
+                    return isNineLeft ? (i9 < i0) : (i9 > i0);
                 }
                 return null;
             }
         });
 
-        // Clue: Position parity of 1 (Even or Odd index)
-        const oneIdx = solution.indexOf(1);
-        const onePosHuman = oneIdx + 1;
-        const isOdd = onePosHuman % 2 !== 0;
-        extraCluesCandidates.push({
-            id: 'rule_one_parity',
-            text: `Số 1 nằm ở ô vị trí ${isOdd ? 'LẺ (ô #1, #3, #5, #7, #9)' : 'CHẴN (ô #2, #4, #6, #8, #10)'}`,
+        // Position of 5
+        const fiveIdx = solution.indexOf(5);
+        rules.push({
+            id: 'rule_five_pos',
+            text: `Số 5 nằm ở nửa ${fiveIdx < 5 ? 'ĐẦU (ô #1 - #5)' : 'SAU (ô #6 - #10)'} của dãy`,
             check: (slots) => {
-                const idx = slots.indexOf(1);
-                if (idx !== -1) {
-                    const pos = idx + 1;
-                    return isOdd ? (pos % 2 !== 0) : (pos % 2 === 0);
+                const i5 = slots.indexOf(5);
+                if (i5 !== -1) {
+                    return fiveIdx < 5 ? (i5 < 5) : (i5 >= 5);
                 }
                 return null;
             }
         });
 
-        // Clue: First or Last element
-        const firstNum = solution[0];
-        extraCluesCandidates.push({
-            id: 'rule_first_elem',
-            text: `Số đầu tiên ở ô #1 là số ${firstNum}`,
+        // Exact distance between 0 and 9
+        const dist = Math.abs(nineIdx - zeroIdx);
+        rules.push({
+            id: 'rule_dist_0_9',
+            text: `Khoảng cách giữa số 0 và số 9 đúng bằng ${dist} vị trí (${dist - 1} ô trống ở giữa)`,
             check: (slots) => {
-                if (slots[0] !== null) return slots[0] === firstNum;
+                const i9 = slots.indexOf(9);
+                const i0 = slots.indexOf(0);
+                if (i9 !== -1 && i0 !== -1) {
+                    return Math.abs(i9 - i0) === dist;
+                }
                 return null;
             }
         });
 
-        const lastNum = solution[9];
-        extraCluesCandidates.push({
-            id: 'rule_last_elem',
-            text: `Số cuối cùng ở ô #10 là số ${lastNum}`,
+        return rules;
+    }
+
+    generateExpertDigitsRules(solution) {
+        const rules = [
+            {
+                id: 'rule_unique',
+                text: 'Gồm 10 chữ số phân biệt từ 0 đến 9',
+                check: (slots) => {
+                    const filled = slots.filter(n => n !== null);
+                    const unique = new Set(filled);
+                    if (filled.length !== unique.size) return false;
+                    return filled.length === 10 ? true : null;
+                }
+            }
+        ];
+
+        // 1. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10)
+        const sumFirst3 = solution[0] + solution[1] + solution[2];
+        const sumLast3 = solution[7] + solution[8] + solution[9];
+        const sumDiff = sumFirst3 - sumLast3;
+
+        rules.push({
+            id: 'rule_sum_balance',
+            text: `Tổng 3 ô đầu tiên (#1+#2+#3) ${sumDiff === 0 ? 'BẰNG' : (sumDiff > 0 ? `LỚN HƠN (${sumDiff} đơn vị)` : `NHO HƠN (${Math.abs(sumDiff)} đơn vị)`)} tổng 3 ô cuối (#8+#9+#10)`,
             check: (slots) => {
-                if (slots[9] !== null) return slots[9] === lastNum;
+                const f0 = slots[0], f1 = slots[1], f2 = slots[2];
+                const l7 = slots[7], l8 = slots[8], l9 = slots[9];
+                if (f0 !== null && f1 !== null && f2 !== null && l7 !== null && l8 !== null && l9 !== null) {
+                    const s1 = f0 + f1 + f2;
+                    const s2 = l7 + l8 + l9;
+                    return (s1 - s2) === sumDiff;
+                }
                 return null;
             }
         });
 
-        // Pick 2 random extra clues
-        const shuffled = extraCluesCandidates.sort(() => Math.random() - 0.5);
-        rules.push(shuffled[0]);
-        if (shuffled[1]) rules.push(shuffled[1]);
+        // 2. Parity rule: No 2 odds adjacent OR odds parity
+        rules.push({
+            id: 'rule_no_adjacent_odds',
+            text: 'KHÔNG được có 2 số lẻ đứng kề cạnh nhau',
+            check: (slots) => {
+                for (let i = 0; i < 9; i++) {
+                    if (slots[i] !== null && slots[i+1] !== null) {
+                        if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
+                    }
+                }
+                const filledOdds = slots.filter(n => n !== null && n % 2 !== 0);
+                if (filledOdds.length === 5) {
+                    for (let i = 0; i < 9; i++) {
+                        if (slots[i] % 2 !== 0 && slots[i+1] % 2 !== 0) return false;
+                    }
+                    return true;
+                }
+                return null;
+            }
+        });
+
+        // 3. Prime numbers rule: Primes (2,3,5,7) adjacent to an even number
+        rules.push({
+            id: 'rule_primes_even_neighbor',
+            text: 'Mọi số nguyên tố (2, 3, 5, 7) phải đứng kề ít nhất 1 số chẵn',
+            check: (slots) => {
+                const primes = [2, 3, 5, 7];
+                for (let p of primes) {
+                    const idx = slots.indexOf(p);
+                    if (idx !== -1) {
+                        const leftEven = idx > 0 && slots[idx-1] !== null && slots[idx-1] % 2 === 0;
+                        const rightEven = idx < 9 && slots[idx+1] !== null && slots[idx+1] % 2 === 0;
+                        if (!leftEven && !rightEven) {
+                            const leftFilled = idx === 0 || slots[idx-1] !== null;
+                            const rightFilled = idx === 9 || slots[idx+1] !== null;
+                            if (leftFilled && rightFilled) return false;
+                        }
+                    }
+                }
+                const placedPrimes = primes.filter(p => slots.includes(p));
+                if (placedPrimes.length === 4) {
+                    let ok = true;
+                    for (let p of primes) {
+                        const idx = slots.indexOf(p);
+                        const leftEven = idx > 0 && slots[idx-1] !== null && slots[idx-1] % 2 === 0;
+                        const rightEven = idx < 9 && slots[idx+1] !== null && slots[idx+1] % 2 === 0;
+                        if (!leftEven && !rightEven) ok = false;
+                    }
+                    return ok ? true : false;
+                }
+                return null;
+            }
+        });
+
+        // 4. Increasing triad rule
+        let triadStart = 3; // check slots #4, #5, #6 (indices 3, 4, 5)
+        const isIncreasing = solution[triadStart] < solution[triadStart+1] && solution[triadStart+1] < solution[triadStart+2];
+        rules.push({
+            id: 'rule_triad_order',
+            text: `Cụm 3 ô ở giữa (#4, #5, #6) ${isIncreasing ? 'tạo thành dãy TĂNG DẦN' : 'KHÔNG tăng dần theo thứ tự'}`,
+            check: (slots) => {
+                const a = slots[3], b = slots[4], c = slots[5];
+                if (a !== null && b !== null && c !== null) {
+                    const inc = a < b && b < c;
+                    return isIncreasing ? inc : !inc;
+                }
+                return null;
+            }
+        });
+
+        // 5. Boundary comparison: Slot #1 vs Slot #10
+        const firstIsGreater = solution[0] > solution[9];
+        rules.push({
+            id: 'rule_boundary_cmp',
+            text: `Số tại ô đầu tiên (#1) ${firstIsGreater ? 'LỚN HƠN' : 'NHỎ HƠN'} số tại ô cuối cùng (#10)`,
+            check: (slots) => {
+                if (slots[0] !== null && slots[9] !== null) {
+                    return firstIsGreater ? (slots[0] > slots[9]) : (slots[0] < slots[9]);
+                }
+                return null;
+            }
+        });
+
+        // 6. Product of center elements
+        const centerProd = solution[4] * solution[5];
+        const isEvenProd = centerProd % 2 === 0;
+        rules.push({
+            id: 'rule_center_prod',
+            text: `Tích 2 ô trung tâm (#5 × #6) là một số ${isEvenProd ? 'CHẴN' : 'LẺ'} (${centerProd})`,
+            check: (slots) => {
+                if (slots[4] !== null && slots[5] !== null) {
+                    return (slots[4] * slots[5]) % 2 === (isEvenProd ? 0 : 1);
+                }
+                return null;
+            }
+        });
 
         return rules;
     }
@@ -273,7 +419,6 @@ class LogicGame {
         window.soundSystem.playClick();
 
         if (this.selectedTile && this.selectedTile.source === 'bank' && this.selectedTile.index === index) {
-            // Deselect
             this.selectedTile = null;
         } else {
             this.selectedTile = { num, source: 'bank', index };
@@ -284,28 +429,15 @@ class LogicGame {
     selectSlot(slotIndex) {
         if (this.isGameOver) return;
 
-        // Case 1: Placing a selected tile from bank into slot
         if (this.selectedTile && this.selectedTile.source === 'bank') {
             const prevNum = this.slots[slotIndex];
-
-            // Save history
             this.saveHistory();
-
-            // Place tile
             this.slots[slotIndex] = this.selectedTile.num;
-            // Remove from bank
             this.bank.splice(this.selectedTile.index, 1);
-
-            // If slot already had a tile, return prev to bank
-            if (prevNum !== null) {
-                this.bank.push(prevNum);
-            }
-
+            if (prevNum !== null) this.bank.push(prevNum);
             this.selectedTile = null;
             window.soundSystem.playPlace();
-        }
-        // Case 2: Moving tile between slots
-        else if (this.selectedTile && this.selectedTile.source === 'slot') {
+        } else if (this.selectedTile && this.selectedTile.source === 'slot') {
             const fromIndex = this.selectedTile.index;
             if (fromIndex !== slotIndex) {
                 this.saveHistory();
@@ -315,10 +447,7 @@ class LogicGame {
                 window.soundSystem.playPlace();
             }
             this.selectedTile = null;
-        }
-        // Case 3: Clicking a filled slot (select or return to bank if clicked again)
-        else if (this.slots[slotIndex] !== null) {
-            // Return to bank directly
+        } else if (this.slots[slotIndex] !== null) {
             this.saveHistory();
             const num = this.slots[slotIndex];
             this.slots[slotIndex] = null;
@@ -360,35 +489,29 @@ class LogicGame {
     giveHint() {
         if (this.hintsCount <= 0 || this.isGameOver) return;
 
-        // Find an empty slot or an incorrect slot
         const candidateIndices = [];
         for (let i = 0; i < 10; i++) {
             if (this.slots[i] !== this.secretSolution[i]) {
                 candidateIndices.push(i);
             }
         }
-
         if (candidateIndices.length === 0) return;
 
-        // Pick one index
         const targetIdx = candidateIndices[Math.floor(Math.random() * candidateIndices.length)];
         const correctNum = this.secretSolution[targetIdx];
 
         this.saveHistory();
 
-        // If current slot has wrong tile, return it to bank
         if (this.slots[targetIdx] !== null) {
             this.bank.push(this.slots[targetIdx]);
             this.slots[targetIdx] = null;
         }
 
-        // Find correctNum in bank
         const bankIdx = this.bank.indexOf(correctNum);
         if (bankIdx !== -1) {
             this.bank.splice(bankIdx, 1);
             this.slots[targetIdx] = correctNum;
         } else {
-            // If correctNum is in another slot, swap it
             const otherSlotIdx = this.slots.indexOf(correctNum);
             if (otherSlotIdx !== -1) {
                 this.slots[otherSlotIdx] = null;
@@ -434,7 +557,6 @@ class LogicGame {
         window.soundSystem.playVictory();
         window.confettiSystem.start();
 
-        // Render winning sequence in modal
         this.dom.victorySequence.innerHTML = this.slots.map(num => 
             `<div class="tile" data-num="${num}">${num}</div>`
         ).join('');
@@ -467,13 +589,8 @@ class LogicGame {
         this.dom.timerDisplay.textContent = "00:00";
     }
 
-    showModal(modal) {
-        modal.classList.add('active');
-    }
-
-    hideModal(modal) {
-        modal.classList.remove('active');
-    }
+    showModal(modal) { modal.classList.add('active'); }
+    hideModal(modal) { modal.classList.remove('active'); }
 
     render() {
         // Render 10 Slots
@@ -501,7 +618,6 @@ class LogicGame {
 
         // Render Bank Tiles
         this.dom.bankTiles.innerHTML = '';
-        // Sort bank tiles ascending for neat display
         const sortedBank = [...this.bank].sort((a,b) => a - b);
         sortedBank.forEach((num, bankIdx) => {
             const tileEl = document.createElement('div');
@@ -544,7 +660,6 @@ class LogicGame {
             this.dom.rulesList.appendChild(ruleEl);
         });
 
-        // Update counters
         const filled = this.slots.filter(s => s !== null).length;
         this.dom.filledCount.textContent = filled;
         this.dom.satisfiedRulesCount.textContent = satisfiedCount;
@@ -553,7 +668,6 @@ class LogicGame {
     }
 }
 
-// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new LogicGame();
 });

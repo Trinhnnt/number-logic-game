@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Số Logic — Trò Chơi Dãy Số Hại Não</title>
-    <meta name="description" content="Trò chơi giải đố logic sắp xếp dãy 10 số dựa trên các quy luật độc đáo.">
+    <title>Số Logic 10 — Trò Chơi Dãy Số Hại Não (0-9)</title>
+    <meta name="description" content="Trò chơi giải đố logic sắp xếp dãy 10 số từ 0 đến 9 dựa trên các quy luật toán học & vị trí cực kỳ hại não.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,12 +22,21 @@
             <div class="logo">
                 <i class="fa-solid fa-brain logo-icon"></i>
                 <div class="logo-text">
-                    <h1>SỐ LOGIC <span>10</span></h1>
-                    <p class="subtitle">Giải Đố Dãy Số Bằng Quy Luật</p>
+                    <h1>SỐ LOGIC <span>0-9</span></h1>
+                    <p class="subtitle">Giải Đố Dãy Số Bằng Quy Luật Hại Não</p>
                 </div>
             </div>
 
             <div class="header-actions">
+                <div class="difficulty-picker">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <select id="difficulty-select" class="select-input" title="Chọn Cấp Độ Chơi">
+                        <option value="classic">🟢 Cơ Bản (1 - 4)</option>
+                        <option value="standard_digits" selected>🟡 Trung Bình (0 - 9)</option>
+                        <option value="expert_digits">🔴 Chuyên Gia (0 - 9 Hại Não)</option>
+                    </select>
+                </div>
+
                 <button id="btn-sound" class="icon-btn" title="Bật/Tắt Âm Thanh">
                     <i class="fa-solid fa-volume-high"></i>
                 </button>
@@ -47,7 +56,7 @@
                 <!-- Mode & Status Bar -->
                 <div class="status-bar">
                     <div class="mode-badge">
-                        <i class="fa-solid fa-puzzle-piece"></i> <span id="current-mode-label">Màn Thử Thách</span>
+                        <i class="fa-solid fa-puzzle-piece"></i> <span id="current-mode-label">Trung Bình (0 - 9)</span>
                     </div>
                     <div class="timer">
                         <i class="fa-regular fa-clock"></i> <span id="timer-display">00:00</span>
@@ -141,26 +150,24 @@
                 <button class="close-modal-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <h3><i class="fa-solid fa-1"></i> Bộ số cố định</h3>
-                <p>Bạn có tổng cộng 10 thẻ số trong kho:</p>
+                <h3><i class="fa-solid fa-1"></i> Các Chế Độ Chơi</h3>
                 <ul>
-                    <li><strong class="num-badge n1">1</strong> : Có 1 số 1</li>
-                    <li><strong class="num-badge n2">2</strong> : Có 2 số 2</li>
-                    <li><strong class="num-badge n3">3</strong> : Có 3 số 3</li>
-                    <li><strong class="num-badge n4">4</strong> : Có 4 số 4</li>
+                    <li>🟢 <strong>Cơ bản (1-4):</strong> 10 ô gồm 1x1, 2x2, 3x3, 4x4.</li>
+                    <li>🟡 <strong>Trung bình (0-9):</strong> 10 chữ số phân biệt từ 0 đến 9.</li>
+                    <li>🔴 <strong>Chuyên gia (0-9 Hại Não):</strong> 10 chữ số 0-9 với các quy luật toán học, số nguyên tố, tổng/tích đan xem cực khó!</li>
                 </ul>
 
-                <h3><i class="fa-solid fa-2"></i> Quy luật cốt lõi</h3>
+                <h3><i class="fa-solid fa-2"></i> Quy luật nâng cao tiêu biểu</h3>
                 <ul>
-                    <li><i class="fa-solid fa-ban text-danger"></i> <strong>Hai số 2 không ở gần nhau</strong> (phải cách nhau ít nhất 1 ô).</li>
-                    <li><i class="fa-solid fa-hand-holding-hand text-success"></i> <strong>Có ít nhất 1 số 3 ở ngay cạnh số 1</strong> (bên trái hoặc bên phải).</li>
-                    <li><i class="fa-solid fa-magnifying-glass text-warning"></i> Cùng các manh mối vị trí bổ sung riêng cho từng màn chơi.</li>
+                    <li><i class="fa-solid fa-calculator text-warning"></i> <strong>Cân bằng Tổng:</strong> Tổng 3 ô đầu bằng tổng 3 ô cuối.</li>
+                    <li><i class="fa-solid fa-hashtag text-danger"></i> <strong>Chẵn / Lẻ:</strong> Không có 2 số lẻ nào nằm liền kề.</li>
+                    <li><i class="fa-solid fa-arrow-trend-up text-success"></i> <strong>Thứ tự Tăng dần:</strong> Cụm ô liên tiếp tăng dần giá trị.</li>
+                    <li><i class="fa-solid fa-star text-primary"></i> <strong>Số nguyên tố:</strong> Số nguyên tố (2,3,5,7) phải đứng kề số chẵn.</li>
                 </ul>
 
                 <h3><i class="fa-solid fa-3"></i> Cách thao tác</h3>
                 <ul>
                     <li><strong>Click / Touch:</strong> Bấm chọn 1 thẻ số ở kho, sau đó bấm vào ô trống để đặt số. Hoặc bấm trực tiếp vào ô để chọn số nhanh.</li>
-                    <li><strong>Kéo & Thả (Drag & Drop):</strong> Kéo thẻ từ kho vào ô mong muốn.</li>
                     <li>Danh sách quy luật bên phải sẽ lập tức cập nhật trạng thái <span class="badge-status status-valid">✔ Đúng</span> hoặc <span class="badge-status status-invalid">✖ Sai</span> khi bạn điền số.</li>
                 </ul>
             </div>
