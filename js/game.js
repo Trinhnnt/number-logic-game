@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (MULTIPLAYER SUPPORT)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (SUM DIFF UNITS FIXED)
    ========================================================================== */
 
 function mulberry32(a) {
@@ -267,13 +267,17 @@ class LogicGame {
             });
         });
 
+        // 3. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10) with exact difference units!
         const sumFirst3 = solution[0] + solution[1] + solution[2];
         const sumLast3 = solution[7] + solution[8] + solution[9];
         const sumDiff = sumFirst3 - sumLast3;
 
         let sumText = 'Tổng 3 ô đầu tiên bằng tổng 3 ô cuối';
-        if (sumDiff > 0) sumText = 'Tổng 3 ô đầu tiên lớn hơn tổng 3 ô cuối';
-        else if (sumDiff < 0) sumText = 'Tổng 3 ô đầu tiên nhỏ hơn tổng 3 ô cuối';
+        if (sumDiff > 0) {
+            sumText = `Tổng 3 ô đầu tiên lớn hơn tổng 3 ô cuối ${sumDiff} đơn vị`;
+        } else if (sumDiff < 0) {
+            sumText = `Tổng 3 ô đầu tiên nhỏ hơn tổng 3 ô cuối ${Math.abs(sumDiff)} đơn vị`;
+        }
 
         rules.push({
             id: 'rule_sum_balance',
@@ -498,7 +502,6 @@ class LogicGame {
 
         const allSatisfied = satisfiedCount === this.rules.length;
 
-        // Broadcast progress in multiplayer mode
         if (window.multiplayer && window.multiplayer.isOpponentConnected) {
             const filledCount = this.slots.filter(s => s !== null).length;
             window.multiplayer.sendProgress(filledCount, satisfiedCount);
