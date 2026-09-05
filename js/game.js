@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (HOST CONTROLS & LEADERBOARD)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (FIXED MODALS & SYNC)
    ========================================================================== */
 
 function mulberry32(a) {
@@ -107,19 +107,25 @@ class LogicGame {
         });
 
         this.dom.btnHelp.addEventListener('click', () => this.showModal(this.dom.helpModal));
-        document.querySelectorAll('.close-modal-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.hideModal(this.dom.helpModal));
+
+        // FIXED: Universal close button logic for ALL modals!
+        document.querySelectorAll('.close-modal-btn, .modal .close').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = btn.closest('.modal');
+                if (modal) this.hideModal(modal);
+            });
         });
 
         window.addEventListener('click', (e) => {
-            if (e.target === this.dom.helpModal) this.hideModal(this.dom.helpModal);
+            if (e.target.classList && e.target.classList.contains('modal')) {
+                this.hideModal(e.target);
+            }
         });
     }
 
     setHostControls(isHost) {
         if (window.multiplayer && window.multiplayer.isOpponentConnected) {
             if (!isHost) {
-                // Guest lock
                 if (this.dom.difficultySelect) {
                     this.dom.difficultySelect.disabled = true;
                     this.dom.difficultySelect.title = "🔒 Chỉ Host mới có quyền đổi cấp độ";
@@ -133,7 +139,6 @@ class LogicGame {
                     this.dom.btnNextLevel.title = "🔒 Chờ Host chuyển màn mới";
                 }
             } else {
-                // Host unlock
                 if (this.dom.difficultySelect) {
                     this.dom.difficultySelect.disabled = false;
                     this.dom.difficultySelect.title = "Chọn Cấp Độ Chơi";
@@ -148,7 +153,6 @@ class LogicGame {
                 }
             }
         } else {
-            // Single player unlock
             if (this.dom.difficultySelect) this.dom.difficultySelect.disabled = false;
             if (this.dom.btnNewGame) this.dom.btnNewGame.disabled = false;
             if (this.dom.btnNextLevel) this.dom.btnNextLevel.disabled = false;
@@ -165,15 +169,19 @@ class LogicGame {
     }
 
     startNewGame() {
+        if (this.dom.difficultySelect) {
+            this.dom.difficultySelect.value = this.difficulty;
+        }
+
         if (this.difficulty === 'classic') {
             this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
-            this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
+            if (this.dom.currentModeLabel) this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
         } else if (this.difficulty === 'standard_digits') {
             this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(this.randomFunc() * 10));
-            this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
+            if (this.dom.currentModeLabel) this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
         } else {
             this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(this.randomFunc() * 10));
-            this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
+            if (this.dom.currentModeLabel) this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
         }
 
         this.bank = [...this.INITIAL_NUMBERS].sort((a,b) => a - b);
