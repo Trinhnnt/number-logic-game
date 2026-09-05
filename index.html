@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Số Logic 10 — Trò Chơi Dãy Số Hại Não (0-9)</title>
-    <meta name="description" content="Trò chơi giải đố logic sắp xếp dãy 10 số từ 0 đến 9 dựa trên các quy luật toán học & vị trí cực kỳ hại não.">
+    <title>Số Logic 10 — Trò Chơi Dãy Số Hại Não (Thi Đấu Online)</title>
+    <meta name="description" content="Trò chơi giải đố logic sắp xếp dãy 10 số từ 0 đến 9 dựa trên các quy luật toán học & vị trí cực kỳ hại não. Hỗ trợ thi đấu Online 1v1 thời gian thực.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,12 +22,16 @@
             <div class="logo">
                 <i class="fa-solid fa-brain logo-icon"></i>
                 <div class="logo-text">
-                    <h1>SỐ LOGIC <span>0-9</span></h1>
+                    <h1>SỐ LOGIC <span>10</span></h1>
                     <p class="subtitle">Giải Đố Dãy Số Bằng Quy Luật Hại Não</p>
                 </div>
             </div>
 
             <div class="header-actions">
+                <button id="btn-multiplayer" class="btn btn-warning">
+                    <i class="fa-solid fa-gamepad"></i> Thi Đấu 1v1
+                </button>
+
                 <div class="difficulty-picker">
                     <i class="fa-solid fa-layer-group"></i>
                     <select id="difficulty-select" class="select-input" title="Chọn Cấp Độ Chơi">
@@ -56,8 +60,18 @@
                 <!-- Mode & Status Bar -->
                 <div class="status-bar">
                     <div class="mode-badge">
-                        <i class="fa-solid fa-puzzle-piece"></i> <span id="current-mode-label">Trung Bình (0 - 9)</span>
+                        <i class="fa-solid fa-puzzle-piece"></i> <span id="current-mode-label">Trung Bình (Random 0-9)</span>
                     </div>
+
+                    <!-- Opponent Bar (Shown during Multiplayer match) -->
+                    <div id="opponent-bar" class="opponent-bar" style="display: none;">
+                        <span id="opponent-status" class="opp-badge"><i class="fa-solid fa-user-ninja"></i> Đối thủ</span>
+                        <div class="opp-progress">
+                            <span>Ô: <strong id="opponent-filled">0</strong>/10</span>
+                            <span>Quy luật: <strong id="opponent-satisfied">0</strong></span>
+                        </div>
+                    </div>
+
                     <div class="timer">
                         <i class="fa-regular fa-clock"></i> <span id="timer-display">00:00</span>
                     </div>
@@ -123,14 +137,56 @@
         </main>
     </div>
 
+    <!-- Multiplayer Modal -->
+    <div id="multiplayer-modal" class="modal">
+        <div class="modal-content help-box">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-gamepad"></i> Thi Đấu Online 1v1</h2>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            
+            <!-- View 1: Select Create or Join -->
+            <div id="mp-view-select" class="modal-body">
+                <p>Hai người chơi sẽ nhận cùng **1 kho 10 số và cùng 1 bộ quy luật** để đua tốc độ giải đố!</p>
+                
+                <div class="mp-actions">
+                    <button id="btn-create-room" class="btn btn-primary btn-lg full-width">
+                        <i class="fa-solid fa-plus-circle"></i> Tạo Phòng Mới (Host)
+                    </button>
+                    
+                    <div class="divider"><span>HOẶC</span></div>
+                    
+                    <div class="join-box">
+                        <input type="text" id="input-room-code" placeholder="Nhập mã phòng 4 số (ví dụ 8899)" maxlength="6" class="select-input mp-input">
+                        <button id="btn-join-room" class="btn btn-success">
+                            <i class="fa-solid fa-right-to-bracket"></i> Vào Phòng
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 2: Room Lobby -->
+            <div id="mp-view-lobby" class="modal-body" style="display: none;">
+                <div class="lobby-card">
+                    <h3>MÃ PHÒNG THI ĐẤU</h3>
+                    <div class="room-code-display" id="display-room-code">8899</div>
+                    <p id="lobby-status-text">⏳ Đang kết nối...</p>
+                    <button id="btn-copy-link" class="btn btn-secondary">
+                        <i class="fa-solid fa-copy"></i> Sao Chép Link Mời
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Victory Modal -->
     <div id="victory-modal" class="modal">
         <div class="modal-content victory-box">
             <div class="victory-icon">
                 <i class="fa-solid fa-trophy"></i>
             </div>
-            <h2>XUẤT SẮC! BẠN ĐÃ THẮNG</h2>
-            <p>Bạn đã giải thành công dãy số logic trong thời gian <strong id="final-time">01:25</strong>!</p>
+            <h2 id="victory-title">XUẤT SẮC! BẠN ĐÃ THẮNG</h2>
+            <p id="victory-desc">Bạn đã giải thành công dãy số logic trong thời gian <strong id="final-time">01:25</strong>!</p>
             <div class="victory-sequence" id="victory-sequence">
                 <!-- Winning sequence display -->
             </div>
@@ -153,22 +209,16 @@
                 <h3><i class="fa-solid fa-1"></i> Các Chế Độ Chơi</h3>
                 <ul>
                     <li>🟢 <strong>Cơ bản (1-4):</strong> 10 ô gồm 1x1, 2x2, 3x3, 4x4.</li>
-                    <li>🟡 <strong>Trung bình (0-9):</strong> 10 chữ số phân biệt từ 0 đến 9.</li>
+                    <li>🟡 <strong>Trung bình (0-9):</strong> 10 chữ số ngẫu nhiên 0-9.</li>
                     <li>🔴 <strong>Chuyên gia (0-9 Hại Não):</strong> 10 chữ số 0-9 với các quy luật toán học, số nguyên tố, tổng/tích đan xem cực khó!</li>
+                    <li>🎮 <strong>Thi Đấu 1v1:</strong> Đua giải đố trực tiếp với bạn bè thời gian thực.</li>
                 </ul>
 
                 <h3><i class="fa-solid fa-2"></i> Quy luật nâng cao tiêu biểu</h3>
                 <ul>
-                    <li><i class="fa-solid fa-calculator text-warning"></i> <strong>Cân bằng Tổng:</strong> Tổng 3 ô đầu bằng tổng 3 ô cuối.</li>
+                    <li><i class="fa-solid fa-calculator text-warning"></i> <strong>Cân bằng Tổng:</strong> Tổng 3 ô đầu lớn hơn/bằng/nhỏ hơn tổng 3 ô cuối.</li>
                     <li><i class="fa-solid fa-hashtag text-danger"></i> <strong>Chẵn / Lẻ:</strong> Không có 2 số lẻ nào nằm liền kề.</li>
-                    <li><i class="fa-solid fa-arrow-trend-up text-success"></i> <strong>Thứ tự Tăng dần:</strong> Cụm ô liên tiếp tăng dần giá trị.</li>
-                    <li><i class="fa-solid fa-star text-primary"></i> <strong>Số nguyên tố:</strong> Số nguyên tố (2,3,5,7) phải đứng kề số chẵn.</li>
-                </ul>
-
-                <h3><i class="fa-solid fa-3"></i> Cách thao tác</h3>
-                <ul>
-                    <li><strong>Click / Touch:</strong> Bấm chọn 1 thẻ số ở kho, sau đó bấm vào ô trống để đặt số. Hoặc bấm trực tiếp vào ô để chọn số nhanh.</li>
-                    <li>Danh sách quy luật bên phải sẽ lập tức cập nhật trạng thái <span class="badge-status status-valid">✔ Đúng</span> hoặc <span class="badge-status status-invalid">✖ Sai</span> khi bạn điền số.</li>
+                    <li><i class="fa-solid fa-ban text-primary"></i> <strong>Không kề nhau:</strong> Các thẻ số trùng nhau không nằm kề nhau.</li>
                 </ul>
             </div>
             <div class="modal-footer">
@@ -177,9 +227,12 @@
         </div>
     </div>
 
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <!-- JavaScript Files -->
     <script src="js/audio.js"></script>
     <script src="js/confetti.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/multiplayer.js"></script>
 </body>
 </html>
