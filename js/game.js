@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (CLEAN TEXT)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (FIXED BANK INDEX BUG)
    ========================================================================== */
 
 class LogicGame {
@@ -93,15 +93,16 @@ class LogicGame {
             this.INITIAL_NUMBERS = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
             this.dom.currentModeLabel.textContent = 'Cơ Bản (1 - 4)';
         } else if (this.difficulty === 'standard_digits') {
-            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10));
             this.dom.currentModeLabel.textContent = 'Trung Bình (Random 0-9)';
         } else {
-            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10)).sort((a,b) => a - b);
+            this.INITIAL_NUMBERS = Array.from({length: 10}, () => Math.floor(Math.random() * 10));
             this.dom.currentModeLabel.textContent = '🔴 Chuyên Gia (Random 0-9 Hại Não)';
         }
 
+        // Always keep bank sorted for 1-to-1 UI index matching!
+        this.bank = [...this.INITIAL_NUMBERS].sort((a,b) => a - b);
         this.slots = Array(10).fill(null);
-        this.bank = [...this.INITIAL_NUMBERS];
         this.history = [];
         this.selectedTile = null;
         this.hintsCount = 3;
@@ -360,29 +361,51 @@ class LogicGame {
     selectSlot(slotIndex) {
         if (this.isGameOver) return;
 
+        // Case 1: Placing tile from bank into slot
         if (this.selectedTile && this.selectedTile.source === 'bank') {
             const prevNum = this.slots[slotIndex];
             this.saveHistory();
+
             this.slots[slotIndex] = this.selectedTile.num;
             this.bank.splice(this.selectedTile.index, 1);
-            if (prevNum !== null) this.bank.push(prevNum);
+
+            if (prevNum !== null) {
+                this.bank.push(prevNum);
+            }
+            this.bank.sort((a,b) => a - b);
+
             this.selectedTile = null;
             window.soundSystem.playPlace();
-        } else if (this.selectedTile && this.selectedTile.source === 'slot') {
+        }
+        // Case 2: Moving tile between slots
+        else if (this.selectedTile && this.selectedTile.source === 'slot') {
             const fromIndex = this.selectedTile.index;
-            if (fromIndex !== slotIndex) {
+            if (fromIndex === slotIndex) {
+                // Clicked same slot -> return to bank
+                this.saveHistory();
+                const num = this.slots[slotIndex];
+                this.slots[slotIndex] = null;
+                this.bank.push(num);
+                this.bank.sort((a,b) => a - b);
+                this.selectedTile = null;
+                window.soundSystem.playRemove();
+            } else {
+                // Swap / Move between slots
                 this.saveHistory();
                 const temp = this.slots[slotIndex];
                 this.slots[slotIndex] = this.slots[fromIndex];
                 this.slots[fromIndex] = temp;
+                this.selectedTile = null;
                 window.soundSystem.playPlace();
             }
-            this.selectedTile = null;
-        } else if (this.slots[slotIndex] !== null) {
+        }
+        // Case 3: Clicking a filled slot (select or return to bank)
+        else if (this.slots[slotIndex] !== null) {
             this.saveHistory();
             const num = this.slots[slotIndex];
             this.slots[slotIndex] = null;
             this.bank.push(num);
+            this.bank.sort((a,b) => a - b);
             window.soundSystem.playRemove();
         }
 
@@ -400,8 +423,8 @@ class LogicGame {
     undo() {
         if (this.history.length === 0 || this.isGameOver) return;
         const lastState = this.history.pop();
-        this.slots = lastState.slots;
-        this.bank = lastState.bank;
+        this.slots = [...lastState.slots];
+        this.bank = [...lastState.bank].sort((a,b) => a - b);
         this.selectedTile = null;
         window.soundSystem.playRemove();
         this.render();
@@ -411,7 +434,7 @@ class LogicGame {
         if (this.slots.every(s => s === null) || this.isGameOver) return;
         this.saveHistory();
         this.slots = Array(10).fill(null);
-        this.bank = [...this.INITIAL_NUMBERS];
+        this.bank = [...this.INITIAL_NUMBERS].sort((a,b) => a - b);
         this.selectedTile = null;
         window.soundSystem.playRemove();
         this.render();
@@ -450,6 +473,7 @@ class LogicGame {
             }
         }
 
+        this.bank.sort((a,b) => a - b);
         this.hintsCount--;
         window.soundSystem.playHint();
         this.render();
@@ -547,10 +571,9 @@ class LogicGame {
             this.dom.slotsGrid.appendChild(slotEl);
         });
 
-        // Render Bank Tiles
+        // Render Bank Tiles directly from this.bank (always sorted, 1-to-1 index matching)
         this.dom.bankTiles.innerHTML = '';
-        const sortedBank = [...this.bank].sort((a,b) => a - b);
-        sortedBank.forEach((num, bankIdx) => {
+        this.bank.forEach((num, bankIdx) => {
             const tileEl = document.createElement('div');
             tileEl.className = 'tile';
             tileEl.setAttribute('data-num', num);
