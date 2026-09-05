@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (SUM DIFF UNITS FIXED)
+   SỐ LOGIC 0-9 - GAME ENGINE & EXPERT PUZZLE GENERATOR (HOST CONTROLS & LEADERBOARD)
    ========================================================================== */
 
 function mulberry32(a) {
@@ -65,18 +65,38 @@ class LogicGame {
     bindEvents() {
         this.dom.difficultySelect.addEventListener('change', (e) => {
             this.difficulty = e.target.value;
-            this.startNewGame();
+            if (window.multiplayer && window.multiplayer.isOpponentConnected && window.multiplayer.isHost) {
+                window.multiplayer.hostStartNewMatch();
+            } else {
+                this.startNewGame();
+            }
         });
 
         this.dom.btnUndo.addEventListener('click', () => this.undo());
         this.dom.btnClear.addEventListener('click', () => this.clearBoard());
         this.dom.btnHint.addEventListener('click', () => this.giveHint());
         this.dom.btnCheck.addEventListener('click', () => this.checkWinCondition(true));
-        this.dom.btnNewGame.addEventListener('click', () => this.startNewGame());
+
+        this.dom.btnNewGame.addEventListener('click', () => {
+            if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+                if (window.multiplayer.isHost) {
+                    window.multiplayer.hostStartNewMatch();
+                }
+            } else {
+                this.startNewGame();
+            }
+        });
+
         this.dom.btnNextLevel.addEventListener('click', () => {
             this.hideModal(this.dom.victoryModal);
             window.confettiSystem.stop();
-            this.startNewGame();
+            if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+                if (window.multiplayer.isHost) {
+                    window.multiplayer.hostStartNewMatch();
+                }
+            } else {
+                this.startNewGame();
+            }
         });
 
         this.dom.btnSound.addEventListener('click', () => {
@@ -94,6 +114,45 @@ class LogicGame {
         window.addEventListener('click', (e) => {
             if (e.target === this.dom.helpModal) this.hideModal(this.dom.helpModal);
         });
+    }
+
+    setHostControls(isHost) {
+        if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+            if (!isHost) {
+                // Guest lock
+                if (this.dom.difficultySelect) {
+                    this.dom.difficultySelect.disabled = true;
+                    this.dom.difficultySelect.title = "🔒 Chỉ Host mới có quyền đổi cấp độ";
+                }
+                if (this.dom.btnNewGame) {
+                    this.dom.btnNewGame.disabled = true;
+                    this.dom.btnNewGame.title = "🔒 Chỉ Host mới có quyền tạo màn mới";
+                }
+                if (this.dom.btnNextLevel) {
+                    this.dom.btnNextLevel.disabled = true;
+                    this.dom.btnNextLevel.title = "🔒 Chờ Host chuyển màn mới";
+                }
+            } else {
+                // Host unlock
+                if (this.dom.difficultySelect) {
+                    this.dom.difficultySelect.disabled = false;
+                    this.dom.difficultySelect.title = "Chọn Cấp Độ Chơi";
+                }
+                if (this.dom.btnNewGame) {
+                    this.dom.btnNewGame.disabled = false;
+                    this.dom.btnNewGame.title = "Tạo Màn Mới";
+                }
+                if (this.dom.btnNextLevel) {
+                    this.dom.btnNextLevel.disabled = false;
+                    this.dom.btnNextLevel.title = "Màn Tiếp Theo";
+                }
+            }
+        } else {
+            // Single player unlock
+            if (this.dom.difficultySelect) this.dom.difficultySelect.disabled = false;
+            if (this.dom.btnNewGame) this.dom.btnNewGame.disabled = false;
+            if (this.dom.btnNextLevel) this.dom.btnNextLevel.disabled = false;
+        }
     }
 
     /* ==========================================================================
@@ -267,7 +326,6 @@ class LogicGame {
             });
         });
 
-        // 3. Math Balance: Sum(#1+#2+#3) vs Sum(#8+#9+#10) with exact difference units!
         const sumFirst3 = solution[0] + solution[1] + solution[2];
         const sumLast3 = solution[7] + solution[8] + solution[9];
         const sumDiff = sumFirst3 - sumLast3;
@@ -520,6 +578,12 @@ class LogicGame {
         }
     }
 
+    getDifficultyLabel() {
+        if (this.difficulty === 'classic') return 'Cơ bản';
+        if (this.difficulty === 'expert_digits') return 'Chuyên gia';
+        return 'Trung bình';
+    }
+
     onWin() {
         this.isGameOver = true;
         this.stopTimer();
@@ -528,6 +592,7 @@ class LogicGame {
 
         if (window.multiplayer && window.multiplayer.isOpponentConnected) {
             window.multiplayer.sendWin();
+            window.multiplayer.recordMatchResult(true, this.dom.timerDisplay.textContent, this.getDifficultyLabel());
         }
 
         if (this.dom.victoryTitle) this.dom.victoryTitle.textContent = "XUẤT SẮC! BẠN ĐÃ THẮNG";
@@ -544,6 +609,10 @@ class LogicGame {
         if (this.isGameOver) return;
         this.isGameOver = true;
         this.stopTimer();
+
+        if (window.multiplayer && window.multiplayer.isOpponentConnected) {
+            window.multiplayer.recordMatchResult(false, this.dom.timerDisplay.textContent, this.getDifficultyLabel());
+        }
 
         if (this.dom.victoryTitle) this.dom.victoryTitle.textContent = "ĐỐI THỦ ĐÃ THẮNG!";
         if (this.dom.victoryDesc) this.dom.victoryDesc.innerHTML = `Đối thủ đã giải đố thành công trước bạn! Rút kinh nghiệm cho ván sau nhé.`;

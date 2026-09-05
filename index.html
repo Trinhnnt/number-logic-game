@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Số Logic 10 — Trò Chơi Dãy Số Hại Não (Thi Đấu Online)</title>
+    <title>Số Logic 10 — Trò Chơi Dãy Số Hại Não (Thi Đấu Online 1v1)</title>
     <meta name="description" content="Trò chơi giải đố logic sắp xếp dãy 10 số từ 0 đến 9 dựa trên các quy luật toán học & vị trí cực kỳ hại não. Hỗ trợ thi đấu Online 1v1 thời gian thực.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,6 +30,10 @@
             <div class="header-actions">
                 <button id="btn-multiplayer" class="btn btn-warning">
                     <i class="fa-solid fa-gamepad"></i> Thi Đấu 1v1
+                </button>
+
+                <button id="btn-leaderboard" class="btn btn-secondary" title="Xem Bảng Xếp Hạng">
+                    <i class="fa-solid fa-trophy"></i> BXH
                 </button>
 
                 <div class="difficulty-picker">
@@ -179,6 +183,53 @@
         </div>
     </div>
 
+    <!-- Leaderboard Modal -->
+    <div id="leaderboard-modal" class="modal">
+        <div class="modal-content help-box">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-trophy"></i> Bảng Xếp Hạng Thi Đấu 1v1</h2>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="score-cards">
+                    <div class="score-card player-score">
+                        <span class="score-label">BẠN</span>
+                        <span id="score-my-wins" class="score-val">0</span>
+                        <span class="score-sub">Trận Thắng</span>
+                    </div>
+                    <div class="score-vs">VS</div>
+                    <div class="score-card opp-score">
+                        <span class="score-label">ĐỐI THỦ</span>
+                        <span id="score-opp-wins" class="score-val">0</span>
+                        <span class="score-sub">Trận Thắng</span>
+                    </div>
+                </div>
+
+                <h3 class="history-title"><i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Các Ván Đấu</h3>
+                <div class="history-table-wrapper">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Ván</th>
+                                <th>Kết quả</th>
+                                <th>Thời gian</th>
+                                <th>Cấp độ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Chưa có dữ liệu ván đấu. Hãy bắt đầu thi đấu 1v1!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary close-modal-btn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Victory Modal -->
     <div id="victory-modal" class="modal">
         <div class="modal-content victory-box">
@@ -211,7 +262,7 @@
                     <li>🟢 <strong>Cơ bản (1-4):</strong> 10 ô gồm 1x1, 2x2, 3x3, 4x4.</li>
                     <li>🟡 <strong>Trung bình (0-9):</strong> 10 chữ số ngẫu nhiên 0-9.</li>
                     <li>🔴 <strong>Chuyên gia (0-9 Hại Não):</strong> 10 chữ số 0-9 với các quy luật toán học, số nguyên tố, tổng/tích đan xem cực khó!</li>
-                    <li>🎮 <strong>Thi Đấu 1v1:</strong> Đua giải đố trực tiếp với bạn bè thời gian thực.</li>
+                    <li>🎮 <strong>Thi Đấu 1v1:</strong> Đua giải đố trực tiếp với bạn bè. <strong>Chỉ Host mới có quyền đổi màn & chọn cấp độ!</strong></li>
                 </ul>
 
                 <h3><i class="fa-solid fa-2"></i> Quy luật nâng cao tiêu biểu</h3>
